@@ -12,4 +12,5 @@ dependencies = [
     "uvicorn>=0.34.3",
 ]
 
-[tool.uv]
+[[tool.uv.index]]
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/"
