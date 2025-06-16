@@ -253,14 +253,17 @@ class AccountManager:
                 self.accounts = []
                 return
             with open(self.filepath, "r", encoding="utf-8") as f:
-                self.accounts = [json.loads(line) for line in f if line.strip()]
+                try:
+                    self.accounts = json.load(f)
+                except json.JSONDecodeError:
+                    self.accounts = []
+                    logging.warning(f"Could not decode JSON from {self.filepath}. Initializing with empty accounts.")
             logging.info(f"Loaded {len(self.accounts)} accounts from {self.filepath}")
 
     def save_accounts(self):
         with self.lock:
             with open(self.filepath, "w", encoding="utf-8") as f:
-                for account in self.accounts:
-                    f.write(json.dumps(account) + "\n")
+                json.dump(self.accounts, f, indent=4)
 
     def add_account(self, account: Dict):
         with self.lock:
