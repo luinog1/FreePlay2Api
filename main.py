@@ -1,3 +1,5 @@
+# from contextlib import asynccontextmanager
+from fastapi.concurrency import asynccontextmanager
 import json
 import os
 import time
@@ -9,6 +11,7 @@ import concurrent.futures
 from typing import Any, List, Optional, Dict, Generator
 
 from fastapi import FastAPI, HTTPException, Depends, Response, Request
+
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
@@ -17,7 +20,9 @@ import requests
 
 # --- 基本配置 ---
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 # --- 全局变量 ---
@@ -113,7 +118,9 @@ MODEL_MAPPING = {
 # --- 服务类 ---
 class FreeplayClient:
     def __init__(self, proxy_config: Optional[str] = None):
-        self.proxies = {"http": proxy_config, "https": proxy_config} if proxy_config else None
+        self.proxies = (
+            {"http": proxy_config, "https": proxy_config} if proxy_config else None
+        )
         self.faker = Faker()
 
     def check_balance(self, session_id: str) -> float:
@@ -210,9 +217,9 @@ class FreeplayClient:
         if system_prompt:
             # 将 system prompt 插入到第一个 user message 前
             if user_messages:
-                user_messages[0][
-                    "content"
-                ] = f"{system_prompt}\n\nUser: {user_messages[0]['content']}"
+                user_messages[0]["content"] = (
+                    f"{system_prompt}\n\nUser: {user_messages[0]['content']}"
+                )
 
         json_payload = {
             "messages": user_messages,
@@ -257,7 +264,9 @@ class AccountManager:
                     self.accounts = json.load(f)
                 except json.JSONDecodeError:
                     self.accounts = []
-                    logging.warning(f"Could not decode JSON from {self.filepath}. Initializing with empty accounts.")
+                    logging.warning(
+                        f"Could not decode JSON from {self.filepath}. Initializing with empty accounts."
+                    )
             logging.info(f"Loaded {len(self.accounts)} accounts from {self.filepath}")
 
     def save_accounts(self):
@@ -352,11 +361,6 @@ class KeyMaintainer(threading.Thread):
             time.sleep(self.config["CHECK_INTERVAL_SECONDS"])
 
 
-# --- FastAPI应用 ---
-app = FastAPI(title="Freeplay.ai to OpenAI API Adapter")
-security = HTTPBearer()
-
-
 def initialize_app():
     global config, account_manager, freeplay_client, valid_client_keys
 
@@ -375,7 +379,7 @@ def initialize_app():
                 "ACTIVE_KEY_THRESHOLD": 5,
                 "CHECK_INTERVAL_SECONDS": 300,
                 "REGISTRATION_CONCURRENCY": 2,
-                "REGISTRATION_PROXY": None,  # 例如 "http://user:pass@host:port"
+                "REGISTRATION_PROXY": None,  # "http://192.168.9.130:7890",  # 例如 "http://user:pass@host:port"
             }
             with open("config.json", "w") as f:
                 json.dump(default_config, f, indent=4)
@@ -408,14 +412,30 @@ def initialize_app():
         logging.info("Key maintenance service started.")
 
 
+# 使用 lifespan 管理生命周期
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 应用启动时执行
+    logging.info("Starting up the application...")
+    initialize_app()  # 调用你的初始化函数
+    yield
+    # 可选：应用关闭时执行
+    logging.info("Shutting down the application...")
+    # 这里可以添加清理逻辑，比如关闭线程、保存状态等
+
+
+# --- FastAPI应用 ---
+# app = FastAPI(title="Freeplay.ai to OpenAI API Adapter")
+app = FastAPI(title="Freeplay.ai to OpenAI API Adapter", lifespan=lifespan)
+security = HTTPBearer()
+# @app.on_event("startup")
+# async def startup_event():
+#     initialize_app()
+
+
 async def authenticate_client(auth: HTTPAuthorizationCredentials = Depends(security)):
     if not auth or auth.credentials not in valid_client_keys:
         raise HTTPException(status_code=403, detail="Invalid client API key.")
-
-
-@app.on_event("startup")
-async def startup_event():
-    initialize_app()
 
 
 @app.get("/v1/models", response_model=ModelList)
@@ -436,7 +456,7 @@ def stream_generator(
     # Start chunk
     start_chunk = StreamResponse(
         model=model_name, choices=[StreamChoice(delta={"role": "assistant"})]
-    ).dict()
+    ).model_dump()
     start_chunk["id"] = chat_id
     start_chunk["created"] = created
     yield f"data: {json.dumps(start_chunk)}\n\n"
@@ -450,7 +470,7 @@ def stream_generator(
                         chunk = StreamResponse(
                             model=model_name,
                             choices=[StreamChoice(delta={"content": data["content"]})],
-                        ).dict()
+                        ).model_dump()
                         chunk["id"] = chat_id
                         chunk["created"] = created
                         yield f"data: {json.dumps(chunk)}\n\n"
@@ -462,7 +482,7 @@ def stream_generator(
         # End chunk
         end_chunk = StreamResponse(
             model=model_name, choices=[StreamChoice(delta={}, finish_reason="stop")]
-        ).dict()
+        ).model_dump()
         end_chunk["id"] = chat_id
         end_chunk["created"] = created
         yield f"data: {json.dumps(end_chunk)}\n\n"
@@ -488,7 +508,7 @@ async def chat_completions(
         raise HTTPException(status_code=404, detail=f"Model '{req.model}' not found.")
 
     model_config = MODEL_MAPPING[req.model]
-    messages_dict = [msg.dict() for msg in req.messages]
+    messages_dict = [msg.model_dump() for msg in req.messages]
 
     # 账户选择和重试逻辑
     assert account_manager is not None
