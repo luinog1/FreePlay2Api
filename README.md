@@ -1,4 +1,4 @@
-# Freeplay.ai to OpenAI API Adapter
+# FreePlay2Api
 
 这是一个将 Freeplay.ai 接口转换为 OpenAI API 兼容接口的适配器，方便您使用习惯的 OpenAI 客户端与 Freeplay.ai 进行交互。
 
