@@ -42,7 +42,7 @@
 
 ## 配置
 
-首次运行会生成 `config.json` 和 `client_api_keys.json` 文件，您可以根据需要修改它们。
+首次运行会生成 `config.json` 和 `client_api_keys.json` 文件，您可以根据需要使用它们。
 
 *   `config.json`: 包含端口、账户文件路径、代理设置等。
 *   `client_api_keys.json`: 包含用于访问适配器的客户端 API 密钥。
