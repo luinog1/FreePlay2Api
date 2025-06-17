@@ -11,3 +11,4 @@ wheels/
 accounts.json
 client_api_keys.json
 config.json
+*.log
