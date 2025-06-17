@@ -5,7 +5,7 @@ import os
 import time
 import uuid
 import threading
-import logging
+from logger import logging
 import asyncio
 import concurrent.futures
 from typing import Any, List, Optional, Dict, Generator
@@ -19,11 +19,13 @@ from faker import Faker
 import requests
 
 # --- 基本配置 ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s - %(levelname)s - %(message)s",
+#     datefmt="%Y-%m-%d %H:%M:%S",
+# )
+
+
 
 # --- 全局变量 ---
 config = {}
