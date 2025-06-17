@@ -49,12 +49,4 @@ console_handler.setFormatter(colored_formatter)
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
-
-# 测试日志
-logger.debug("这是一个 debug 日志")
-logger.info("这是一个 info 日志")
-logger.warning("这是一个 warning 日志")
-logger.error("这是一个 error 日志")
-logger.critical("这是一个 critical 日志")
-
 logging = logger
